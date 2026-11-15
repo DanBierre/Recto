@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en-NZ" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: file: https:; font-src 'self' data:; frame-src 'self' about: data: file:">
+  <title>Recto</title>
+  <link rel="stylesheet" href="dist/styles.css">
+</head>
+<body>
+  <header id="titlebar">
+    <button id="brand" title="Commands (Ctrl+Shift+P)" tabindex="-1"><svg class="nib" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 88L35 50C33 44 33 36 36 30L40 14H60L64 30C67 36 67 44 65 50Z"/><path d="M50 50V90" class="cut"/><circle cx="50" cy="46" r="5" class="cut"/></svg></button>
+    <div id="tabs"></div>
+    <span id="chord" hidden>Ctrl+K …</span>
+  </header>
+
+  <main id="main">
+    <aside id="sidebar"></aside>
+    <section id="pane">
+      <div id="editor" hidden></div>
+      <div id="viewer" hidden></div>
+      <div id="empty" hidden>
+        <div class="glyph">R</div>
+        <ul class="hints">
+          <li data-act="new"><span>New file</span><kbd>Ctrl+N</kbd></li>
+          <li data-act="open"><span>Open file</span><kbd>Ctrl+O</kbd></li>
+          <li data-act="goto"><span>Go to file</span><kbd>Ctrl+P</kbd></li>
+          <li data-act="commands"><span>Commands</span><kbd>Ctrl+Shift+P</kbd></li>
+        </ul>
+        <div class="recent" id="recent" hidden><h2>Recent</h2><ul></ul></div>
+        <p class="version" id="version"></p>
+      </div>
+    </section>
+    <aside id="preview"><iframe sandbox="allow-same-origin allow-popups" title="Markdown preview"></iframe></aside>
+  </main>
+
+  <footer id="status"></footer>
+
+  <div id="palette" hidden>
+    <input spellcheck="false" autocomplete="off">
+    <ul></ul>
+  </div>
+  <div id="menu" role="menu" hidden></div>
+  <dialog id="themes" aria-label="Choose a theme">
+    <h2>Theme</h2>
+    <div class="swatches"></div>
+    <footer><button class="follow" aria-pressed="false">Follow Windows light and dark</button><span class="hint">Esc to close</span></footer>
+  </dialog>
+  <dialog id="setup" aria-label="Set up Recto">
+    <form method="dialog" class="note">
+      <svg class="nib" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 88L35 50C33 44 33 36 36 30L40 14H60L64 30C67 36 67 44 65 50Z"/><path d="M50 50V90" class="cut"/><circle cx="50" cy="46" r="5" class="cut"/></svg>
+      <p class="hi">Welcome to Recto.</p>
+      <p>You're on <span class="pick"><select name="look" aria-label="Theme"></select></span>
+        with the <span class="pick"><select name="layout" aria-label="Layout">
+          <option value="classic">classic</option><option value="page">page</option><option value="focus">focus</option>
+        </select></span> layout in <span class="pick"><select name="font" aria-label="Reading font">
+          <option value="serif">serif</option><option value="sans">sans</option><option value="mono">mono</option>
+        </select></span>. Change anything you like.</p>
+      <p><span class="ask">Add Recto to your right-click menu? <span class="pick"><select name="menu" aria-label="Right-click menu">
+          <option value="on">Yes</option><option value="off">No</option>
+        </select></span></span>
+        <span class="ask">Desktop shortcut? <span class="pick"><select name="desktop" aria-label="Desktop shortcut">
+          <option value="on">Yes</option><option value="off">No</option>
+        </select></span></span></p>
+      <p>When it opens, show <span class="pick"><select name="start" aria-label="On start">
+          <option value="resume">your last files</option><option value="blank">a blank page</option>
+        </select></span>.</p>
+      <footer>
+        <button value="done" class="go">Sounds good</button>
+        <button value="skip" class="skip">Skip</button>
+        <span class="hint">Change any of it later with Ctrl+Shift+P.</span>
+      </footer>
+    </form>
+  </dialog>
+  <div id="flash"></div>
+  <div id="toast" hidden></div>
+
+  <script src="dist/app.js"></script>
+</body>
+</html>
