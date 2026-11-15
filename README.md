@@ -91,6 +91,16 @@ npm run check
 
 [Electron](https://www.electronjs.org) and [CodeMirror 6](https://codemirror.net).
 
+## A bit of history
+
+I built Recto last year for myself and kept it private. It's been my everyday editor since, so it felt like time to put it out there.
+
+## Contributing
+
+Contributions are very welcome, big or small.
+
+One spot that could really use a hand: the setup window in [`build/setup.cs`](build/setup.cs). It's C#, and I'm not the best at C#, so some of it is probably up to interpretation. If you know your way around WinForms and spot something odd, a pull request or an issue would be much appreciated.
+
 ## Licence
 
 MIT. See [LICENSE](LICENSE).
