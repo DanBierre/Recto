@@ -73,15 +73,19 @@ const EXT = {
   go: 'go', lua: 'lua', rb: 'ruby', swift: 'swift',
   txt: 'text', log: 'text',
 };
-const NAMES = { dockerfile: 'dockerfile', makefile: 'shell', '.gitignore': 'ini', '.env': 'ini', '.bashrc': 'shell' };
+const NAMES = { dockerfile: 'dockerfile', makefile: 'make', gnumakefile: 'make', '.gitignore': 'ignore', '.dockerignore': 'ignore', '.npmignore': 'ignore', '.env': 'ini', '.bashrc': 'shell' };
+const SHEBANG = { sh: 'shell', bash: 'shell', zsh: 'shell', python: 'python', node: 'javascript', ruby: 'ruby', php: 'php', lua: 'lua', pwsh: 'powershell' };
 
-export function languageFor(name) {
+// `text` is the start of the file: a script with no extension is told apart by its #! line.
+export function languageFor(name, text = '') {
   if (!name) return 'text';
   const lower = basename(name).toLowerCase();
   if (NAMES[lower]) return NAMES[lower];
   if (lower.startsWith('.env')) return 'ini';
   const ext = lower.includes('.') ? lower.split('.').pop() : '';
-  return EXT[ext] || 'text';
+  if (EXT[ext]) return EXT[ext];
+  const m = !ext && /^#!\s*(?:\S*\/)?(?:env\s+(?:-S\s+)?)?([a-z]+)/i.exec(text.slice(0, 200));
+  return (m && SHEBANG[m[1].toLowerCase()]) || 'text';
 }
 
 export function countWords(text) {

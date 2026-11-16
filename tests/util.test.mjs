@@ -23,6 +23,12 @@ test('languageFor maps names and extensions', () => {
   assert.equal(languageFor('.env.local'), 'ini');
   assert.equal(languageFor('notes'), 'text');
   assert.equal(languageFor(null), 'text');
+  assert.equal(languageFor('Makefile'), 'make');
+  assert.equal(languageFor('C:\\x\\.gitignore'), 'ignore');
+  assert.equal(languageFor('run', '#!/usr/bin/env python3\nprint(1)'), 'python');
+  assert.equal(languageFor('run', '#!/bin/bash\n'), 'shell');
+  assert.equal(languageFor('run', 'hello'), 'text');
+  assert.equal(languageFor('a.txt', '#!/bin/bash'), 'text');
 });
 
 test('path helpers', () => {

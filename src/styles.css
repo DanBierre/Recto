@@ -277,6 +277,12 @@ kbd { font: 11px var(--font-mono); color: var(--text-3); }
 body.with-sidebar #main { grid-template-columns: 230px 1fr 0; }
 body.with-preview #main { grid-template-columns: 0 1fr 1fr; }
 body.with-sidebar.with-preview #main { grid-template-columns: 230px 1fr 1fr; }
+/* In a narrow window the sidebar gives way to the editor. */
+@media (max-width: 599px) {
+  body.with-sidebar #main { grid-template-columns: 0 1fr 0; }
+  body.with-sidebar.with-preview #main { grid-template-columns: 0 1fr 1fr; }
+  body.with-sidebar #sidebar { border-right: 0; }
+}
 #sidebar, #preview { overflow: hidden; min-width: 0; }
 body.with-sidebar #sidebar { border-right: 1px solid var(--line); }
 body.with-preview #preview { border-left: 1px solid var(--line); }

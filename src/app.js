@@ -87,7 +87,7 @@ function toggleWrap() {
 
 function newDoc({ path = null, text = '', lang, saved, eol = '\r\n', encoding = 'utf8', bom = false, mtime = 0, title = null, selection, wrap } = {}) {
   const d = { id: nextId++, path, title, eol, encoding, bom, mtime, scroll: 0 };
-  d.lang = lang || languageFor(path || title);
+  d.lang = lang || languageFor(path || title, text);
   // Prose wraps by default; code follows the setting. Alt+Z flips it per tab.
   d.wrap = wrap ?? (PROSE.has(d.lang) || settings.wrap);
   d.indent = detectIndent(text, { tabs: false, size: d.lang === 'python' ? 4 : 2 });
@@ -144,7 +144,7 @@ function renderTabs() {
       hint.textContent = basename(dirname(d.path));
       tab.append(hint);
     }
-    if (d.changedOnDisk) tab.classList.add('stale');
+    if (d.changedOnDisk || d.missing) tab.classList.add('stale');
     const close = document.createElement('button');
     close.className = 'close';
     close.tabIndex = -1;
@@ -306,8 +306,9 @@ async function save(d = active, { as = false } = {}) {
   d.mtime = r.mtime;
   d.saved = textOf(d);
   d.changedOnDisk = false;
+  d.missing = false;
   if (renamed) {
-    const lang = languageFor(p);
+    const lang = languageFor(p, stateOf(d).doc.sliceString(0, 200));
     if (lang !== d.lang) setLanguage(lang, d);
     addRecent(p);
     watchOpenFiles();
@@ -326,6 +327,15 @@ async function saveAll() {
 async function reloadFromDisk(d, { force = false } = {}) {
   if (!d.path) return;
   const r = await api.readFile(d.path);
+  if (r.missing) {
+    if (!d.missing) {
+      d.missing = true;
+      renderTabs();
+      renderStatus();
+      toast(`${docName(d)} was deleted outside Recto. Saving will put it back.`);
+    }
+    return;
+  }
   if (r.error) return;
   if (r.mtime === d.mtime && !force) return;
   if (d.view) { d.mtime = r.mtime; if (d === active) renderViewer(); return; }
@@ -346,7 +356,9 @@ async function reloadFromDisk(d, { force = false } = {}) {
   d.encoding = r.encoding;
   d.bom = r.bom;
   d.changedOnDisk = false;
+  d.missing = false;
   renderTabs();
+  renderStatus();
   if (d === active) renderViewer();
 }
 
@@ -452,12 +464,14 @@ function renderStatus() {
     statusEl.append(b);
     return b;
   };
-  const left = add(active.path ? relativeTo(settings.folder, active.path) : 'Not saved yet', {
-    cls: 'path', title: active.path ? 'Show in File Explorer' : '', onClick: active.path ? () => api.reveal(active.path) : undefined,
+  // Just the folder and file name, so deep paths don't fill the bar. The full path is on hover.
+  const left = add(active.path ? active.path.split(/[\\/]/).slice(-2).join('\\') : 'Not saved yet', {
+    cls: 'path', title: active.path ? `${active.path}\nClick to show in File Explorer` : '', onClick: active.path ? () => api.reveal(active.path) : undefined,
   });
   left.classList.add('grow');
   if (active.view) { add(active.view === 'pdf' ? 'PDF' : 'Image'); return; }
   if (isCsv(active)) add(showsViewer(active) ? 'View as text' : 'View as table', { onClick: toggleTable, title: 'Switch between the table and the raw text' });
+  if (active.missing) add('Deleted on disk', { cls: 'warn', title: 'Saving will put the file back' });
   if (active.changedOnDisk) add('Changed on disk', { cls: 'warn', onClick: () => reloadFromDisk(active, { force: true }), title: 'Reload from disk' });
   const sel = st.selection;
   const head = sel.main.head;
@@ -1277,6 +1291,8 @@ function closeMenu() {
 window.addEventListener('mousedown', e => { if (!menuEl.contains(e.target)) closeMenu(); }, true);
 window.addEventListener('blur', closeMenu);
 window.addEventListener('resize', closeMenu);
+// A narrower window can push the active tab out of sight.
+window.addEventListener('resize', () => tabsEl.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
 document.addEventListener('scroll', closeMenu, true);
 
 function copyPath(p) {
