@@ -218,7 +218,11 @@ async function openPath(p, { focus = true, line } = {}) {
   if (open) { activate(open, { focus }); if (line) goToLine(line); return open; }
   const r = await api.readFile(p);
   if (r.dir) { setFolder(p); return null; }
-  if (r.error) { toast(`${basename(p)}: ${r.error}`); return null; }
+  if (r.error) {
+    toast(`${basename(p)}: ${r.error}`);
+    if (r.missing) pruneRecent(p);
+    return null;
+  }
   let d;
   if (r.view) {
     // Images and PDFs are shown, not edited.
@@ -253,6 +257,13 @@ function addRecent(p) {
   api.saveSettings({ recent: settings.recent });
 }
 
+// A recent file that's gone would fail every time, so drop it from the list.
+function pruneRecent(p) {
+  settings.recent = settings.recent.filter(x => x.toLowerCase() !== p.toLowerCase());
+  api.saveSettings({ recent: settings.recent });
+  renderRecent();
+}
+
 function trimmed(text) {
   return text.replace(/[ \t]+$/gm, '');
 }
@@ -282,7 +293,7 @@ async function save(d = active, { as = false } = {}) {
   }
   const text = textOf(d).sliceString(0, undefined, d.eol);
   const r = await api.writeFile(p, text, d.encoding, d.bom);
-  if (!r.ok) { toast(`Couldn't save: ${r.error}`); return false; }
+  if (!r.ok) { toast(`Couldn't save ${basename(p)}: ${r.error}`); return false; }
   if (r.encoding !== d.encoding) toast(`Some characters don't fit ${ENCODINGS[d.encoding]}, so ${docName(d)} was saved as UTF-8.`);
   d.encoding = r.encoding;
   d.bom = r.bom;
@@ -643,6 +654,7 @@ function fileItems(q) {
   for (const d of docs) if (!d.path) list.push({ label: docName(d), detail: 'open', run: () => activate(d) });
   for (const p of folderFiles || []) push(p, '');
   for (const p of settings.recent) push(p, 'recent');
+  if (!list.length && !settings.folder) return [{ label: 'Open a folder to search its files', run: async () => { const f = await api.folderDialog(); if (f) setFolder(f); } }];
   if (!query.trim()) return list.slice(0, 60);
   return rank(list, query);
 }
@@ -1423,6 +1435,7 @@ window.addEventListener('keydown', e => {
         '=': () => zoom(1), '+': () => zoom(1), '-': () => zoom(-1), 0: () => zoom(0),
         k: () => { chord = 1; $('#chord').hidden = false; setTimeout(() => { chord = 0; $('#chord').hidden = true; }, 1500); },
       }[k];
+      if (!run && !active && (k === 'f' || k === 'h')) run = () => flash('Open a file first, then search in it');
       if (!run && /^[1-9]$/.test(k)) run = () => { const d = k === '9' ? docs.at(-1) : docs[Number(k) - 1]; if (d) activate(d); };
     }
   } else if (e.altKey && !ctrl && k === 'z') run = toggleWrap;
