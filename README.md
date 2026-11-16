@@ -69,7 +69,7 @@ The first time it runs, Recto asks a few quick questions (theme, layout, font, r
 - Eight themes to pick from: Paper, Ink, Cloud, Slate, Sage, Forest, Rose and Plum, or follow Windows light and dark
 - Three layouts: Classic, Page (a centred sheet, nice for writing) and Focus
 - A reading font for notes and prose (serif, sans or mono), with code staying in mono
-- Keeps your file's encoding (UTF-8, UTF-16, Windows-1252) and line endings as they were
+- Keeps your file's encoding (UTF-8, UTF-16, Windows-1252) and line endings (Windows or Unix) as they were. A file with a mix of the two gets tidied to one style, and Recto tells you when it opens
 - Can start with a blank page instead of your last files, if you'd rather
 - "Edit with Recto" in the Explorer right-click menu
 

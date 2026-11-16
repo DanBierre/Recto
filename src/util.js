@@ -6,6 +6,11 @@ export function detectEol(text) {
   return crlf > lf ? '\r\n' : '\n';
 }
 
+// True when a file has both CRLF and bare LF line endings.
+export function mixedEol(text) {
+  return /\r\n/.test(text) && /(?<!\r)\n/.test(text);
+}
+
 export function basename(p) {
   return p.split(/[\\/]/).pop();
 }

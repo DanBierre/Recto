@@ -10,7 +10,7 @@ import { lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
 import { foldGutter } from '@codemirror/language';
 import { LANGUAGES, languageLabel, languageExtension } from './languages.js';
 import { openPalette, closePalette, paletteOpen } from './palette.js';
-import { detectEol, detectIndent, basename, dirname, relativeTo, fuzzy, languageFor, countWords } from './util.js';
+import { detectEol, detectIndent, basename, dirname, relativeTo, fuzzy, languageFor, countWords, mixedEol } from './util.js';
 import { docHtml, docxParts, markdownText, parseCsv, csvToJson, jsonToCsv } from './export.js';
 
 const api = window.recto;
@@ -216,7 +216,10 @@ async function openPath(p, { focus = true, line } = {}) {
   const same = x => x && x.toLowerCase() === p.toLowerCase();
   const open = docs.find(d => same(d.path) || same(d.source));
   if (open) { activate(open, { focus }); if (line) goToLine(line); return open; }
+  // A slow disk or network drive gets a note, so it doesn't look like nothing happened.
+  const slow = setTimeout(() => flash('Opening…'), 300);
   const r = await api.readFile(p);
+  clearTimeout(slow);
   if (r.dir) { setFolder(p); return null; }
   if (r.error) {
     toast(`${basename(p)}: ${r.error}`);
@@ -236,6 +239,7 @@ async function openPath(p, { focus = true, line } = {}) {
     flash('Text from the Word file. Save it wherever you like');
   } else {
     d = newDoc({ path: p, text: r.content.replace(/\r\n?/g, '\n'), eol: detectEol(r.content), encoding: r.encoding, bom: r.bom, mtime: r.mtime });
+    if (mixedEol(r.content)) toast(`${basename(p)} mixes Windows and Unix line endings. Recto will save it as ${d.eol === '\r\n' ? 'Windows (CRLF)' : 'Unix (LF)'} throughout.`);
   }
   // Like Sublime: an empty untitled tab gets replaced by the file you open.
   const blank = isBlankUntitled(active) && docs.length ? active : null;
@@ -465,7 +469,8 @@ function renderStatus() {
     add(lines > 1 ? `${lines} lines, ${n} characters selected` : `${n} selected`);
   }
   add(`Ln ${line.number}, Col ${head - line.from + 1}`, { onClick: () => openGoTo(':'), title: 'Go to line' });
-  if (active.lang === 'markdown' || active.lang === 'text') add(`${countWords(st.doc.toString()).toLocaleString()} words`);
+  // Counting words means reading the whole file on every keystroke, so skip it for big ones.
+  if ((active.lang === 'markdown' || active.lang === 'text') && st.doc.length < 1e6) add(`${countWords(st.doc.toString()).toLocaleString()} words`);
   add(active.indent.tabs ? `Tabs: ${active.indent.size}` : `Spaces: ${active.indent.size}`, { onClick: pickIndent, title: 'Change indent' });
   const enc = encodingLabel(active);
   if (enc !== 'UTF-8') add(enc, { onClick: pickEncoding, title: 'Change encoding' });
