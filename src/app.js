@@ -107,10 +107,11 @@ function activate(d, { focus = true } = {}) {
     // Settings may have changed while this tab was in the background.
     view.dispatch({ effects: docEffects(d) });
     requestAnimationFrame(() => { view.scrollDOM.scrollTop = d.scroll; });
-    if (focus) view.focus();
   }
   emptyEl.hidden = !!d;
   renderViewer();
+  // Focus only once the editor is visible, or the first file from the welcome screen gets no cursor.
+  if (d && focus && !$('#editor').hidden) view.focus();
   if (!d) renderRecent();
   document.title = d ? `${docName(d)} · Recto` : 'Recto';
   renderTabs();

@@ -1,5 +1,5 @@
 // Recto main process: window, files, settings and session on disk.
-const { app, BrowserWindow, ipcMain, dialog, nativeTheme, shell, Menu, session } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeTheme, shell, Menu, session, screen } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { decode, encode } = require('./encoding');
@@ -60,7 +60,9 @@ const startColours = (dark, tone) => (START[tone] || START.warm)[dark ? 1 : 0];
 
 function createWindow() {
   const settings = readJson(settingsFile, {});
-  const b = settings.bounds || {};
+  const b = { ...settings.bounds };
+  // A saved position on a monitor that's gone would open the window out of reach.
+  if (b.x != null && !screen.getAllDisplays().some(({ workArea: w }) => b.x + 100 > w.x && b.x < w.x + w.width - 100 && b.y >= w.y - 20 && b.y < w.y + w.height - 50)) { delete b.x; delete b.y; }
   const dark = settings.theme === 'dark' || (settings.theme !== 'light' && nativeTheme.shouldUseDarkColors);
   const c = startColours(dark, settings.tone);
   win = new BrowserWindow({
