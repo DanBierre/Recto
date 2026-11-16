@@ -12,7 +12,8 @@ It opens fast, stays out of the way, and doesn't ask you to sign in to anything.
 
 <p align="center">
   <a href="https://github.com/DanBierre/recto/releases/latest/download/Recto-Setup.exe"><strong>Download Recto for Windows</strong></a><br>
-  <sub>Windows 10 or 11, 64-bit &middot; about 100 MB &middot; free</sub>
+  <sub>Windows 10 or 11, 64-bit &middot; about 100 MB &middot; free</sub><br>
+  <sub><a href="https://softlightsoftware.dev/recto.html">More on the Recto page</a></sub>
 </p>
 
 <p align="center">
