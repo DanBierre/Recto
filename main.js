@@ -190,11 +190,22 @@ function readFile(p) {
     if (r.binary) return { path: p, error: "That looks like a binary file, so Recto won't open it." };
     return { path: p, ...r, mtime: st.mtimeMs };
   } catch (err) {
-    return { path: p, error: err.code === 'ENOENT' ? 'File not found.' : err.message };
+    return { path: p, missing: err.code === 'ENOENT', error: err.code === 'ENOENT' ? 'File not found.' : err.message };
   }
 }
 
 ipcMain.handle('file:read', (_e, p) => readFile(p));
+
+// Plain words for the save errors people actually hit. Anything else keeps the system's own text.
+function saveError(err) {
+  switch (err.code) {
+    case 'EPERM': case 'EACCES': case 'EROFS': return "it's read-only, or Windows won't let Recto change it. Try Save as…";
+    case 'EBUSY': return "another program is using it.";
+    case 'ENOSPC': return 'the disk is full.';
+    case 'ENOENT': return "its folder isn't there any more. Try Save as…";
+    default: return err.message;
+  }
+}
 
 ipcMain.handle('file:write', (_e, p, content, encoding, bom) => {
   try {
@@ -204,7 +215,7 @@ ipcMain.handle('file:write', (_e, p, content, encoding, bom) => {
     fs.writeFileSync(p, buf);
     return { ok: true, mtime: fs.statSync(p).mtimeMs, encoding, bom };
   } catch (err) {
-    return { ok: false, error: err.message };
+    return { ok: false, error: saveError(err) };
   }
 });
 
