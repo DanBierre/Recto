@@ -1,10 +1,59 @@
-# Recto
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.svg">
+    <img src="docs/logo-light.svg" alt="Recto" width="72" height="72">
+  </picture>
+</p>
 
-A small, quiet text editor for Windows. It opens fast, stays out of the way, and doesn't ask you to sign in to anything.
+<h1 align="center">Recto</h1>
+
+<p align="center">A small, quiet text editor for Windows.<br>
+It opens fast, stays out of the way, and doesn't ask you to sign in to anything.</p>
+
+<p align="center">
+  <a href="https://github.com/DanBierre/recto/releases/latest/download/Recto-Setup.exe"><strong>Download Recto for Windows</strong></a><br>
+  <sub>Windows 10 or 11, 64-bit &middot; about 100 MB &middot; free</sub>
+</p>
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/screenshots/editor-dark.png">
+    <img src="docs/screenshots/editor-light.png" alt="Recto showing a JavaScript file, with a folder sidebar and tabs along the top" width="800">
+  </picture>
+</p>
 
 I built it because I wanted something between Notepad and Sublime: quick enough to open a log file, good enough to write code in.
 
 *Recto* is the right-hand page of an open book. It's the page you start writing on.
+
+## Get it
+
+1. [Download `Recto-Setup.exe`](https://github.com/DanBierre/recto/releases/latest/download/Recto-Setup.exe).
+2. Run it.
+3. If Windows shows **Windows protected your PC**, click **More info**, then **Run anyway**.
+
+That warning is there because the installer isn't signed yet. The source is all in this repo, so you can read it or build the installer yourself (see below) if you'd rather not take my word for it.
+
+Recto is free and [MIT licensed](LICENSE).
+
+## A look around
+
+<table>
+  <tr>
+    <td width="50%"><img src="docs/screenshots/palette.png" alt="The command palette, open over a file"><br><sub><b>Command palette.</b> <code>Ctrl+Shift+P</code>. Every setting lives here too.</sub></td>
+    <td width="50%"><img src="docs/screenshots/goto-file.png" alt="Go to file, searching the open folder"><br><sub><b>Go to file.</b> <code>Ctrl+P</code>. Start with <code>:</code>, <code>@</code> or <code>&gt;</code> for a line, a symbol or a command.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/markdown-preview.png" alt="A Markdown file with a rendered preview beside it"><br><sub><b>Markdown preview.</b> <code>Ctrl+Shift+M</code>.</sub></td>
+    <td><img src="docs/screenshots/page-layout.png" alt="The Page layout in a dark green theme"><br><sub><b>Page layout.</b> A centred sheet, nice for writing.</sub></td>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/themes.png" alt="The theme picker"><br><sub><b>Eight themes.</b> Or follow Windows light and dark.</sub></td>
+    <td><img src="docs/screenshots/csv-table.png" alt="A CSV file shown as a table"><br><sub><b>CSV as a table.</b> Switch to the raw text any time.</sub></td>
+  </tr>
+</table>
+
+The first time it runs, Recto asks a few quick questions (theme, layout, font, right-click menu, desktop shortcut). You can skip them, and change any of it later.
 
 ## What it does
 
