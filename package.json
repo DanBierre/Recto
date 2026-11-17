@@ -1,7 +1,7 @@
 {
   "name": "recto",
   "productName": "Recto",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "A small, quiet text editor.",
   "main": "main.js",
   "private": true,
