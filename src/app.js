@@ -226,6 +226,11 @@ async function openPath(p, { focus = true, line } = {}) {
     if (r.missing) pruneRecent(p);
     return null;
   }
+  // Building the editor for a big file freezes the window for a moment. Show the note first.
+  if (r.content && r.content.length > 2e6) {
+    flash('Opening a big file…');
+    await new Promise(done => setTimeout(done, 60));
+  }
   let d;
   if (r.view) {
     // Images and PDFs are shown, not edited.
