@@ -10,7 +10,7 @@ import { lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
 import { foldGutter } from '@codemirror/language';
 import { LANGUAGES, languageLabel, languageExtension } from './languages.js';
 import { openPalette, closePalette, paletteOpen } from './palette.js';
-import { detectEol, detectIndent, basename, dirname, relativeTo, fuzzy, languageFor, countWords, mixedEol } from './util.js';
+import { detectEol, detectIndent, basename, dirname, relativeTo, fuzzy, languageFor, countWords, countChars, mixedEol } from './util.js';
 import { docHtml, docxParts, markdownText, parseCsv, csvToJson, jsonToCsv } from './export.js';
 
 const api = window.recto;
@@ -484,7 +484,11 @@ function renderStatus() {
   }
   add(`Ln ${line.number}, Col ${head - line.from + 1}`, { onClick: () => openGoTo(':'), title: 'Go to line' });
   // Counting words means reading the whole file on every keystroke, so skip it for big ones.
-  if ((active.lang === 'markdown' || active.lang === 'text') && st.doc.length < 1e6) add(`${countWords(st.doc.toString()).toLocaleString()} words`);
+  if (PROSE.has(active.lang) && st.doc.length < 1e6) {
+    const body = st.doc.toString();
+    add(`${countWords(body).toLocaleString()} words`);
+    add(`${countChars(body).toLocaleString()} chars`);
+  }
   add(active.indent.tabs ? `Tabs: ${active.indent.size}` : `Spaces: ${active.indent.size}`, { onClick: pickIndent, title: 'Change indent' });
   const enc = encodingLabel(active);
   if (enc !== 'UTF-8') add(enc, { onClick: pickEncoding, title: 'Change encoding' });

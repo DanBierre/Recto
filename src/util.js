@@ -88,6 +88,13 @@ export function languageFor(name, text = '') {
   return (m && SHEBANG[m[1].toLowerCase()]) || 'text';
 }
 
+// Characters as people count them: code points, no line breaks. Handy for Japanese, which has no spaces to count words by.
+export function countChars(text) {
+  let n = 0;
+  for (const ch of text) if (ch !== '\n' && ch !== '\r') n++;
+  return n;
+}
+
 export function countWords(text) {
   const m = text.match(/\S+/g);
   return m ? m.length : 0;
