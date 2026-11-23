@@ -74,7 +74,7 @@ The first time it runs, Recto asks a few quick questions (theme, layout, font, r
 - Opens more than text: pictures and PDFs to look at, CSV files as a table, and the words out of Word files
 - Eight themes to pick from: Paper, Ink, Cloud, Slate, Sage, Forest, Rose and Plum, or follow Windows light and dark
 - Three layouts: Classic, Page (a centred sheet, nice for writing) and Focus
-- A reading font for notes and prose (serif, sans or mono), with code staying in mono
+- Pick your own fonts from the palette (`Font: choose…`): one for notes, one for code. It only lists fonts installed on your computer, shows each in its own style, and previews as you move
 - Keeps your file's encoding (UTF-8, UTF-16, Windows-1252) and line endings (Windows or Unix) as they were. A file with a mix of the two gets tidied to one style, and Recto tells you when it opens
 - Can start with a blank page instead of your last files, if you'd rather
 - "Edit with Recto" in the Explorer right-click menu

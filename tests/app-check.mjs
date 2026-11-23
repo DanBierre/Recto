@@ -305,6 +305,28 @@ await page2.keyboard.press('Control+z');
 await page2.evaluate(() => window.__recto.setSplit(null));
 assert.ok(!(await page2.isVisible('#side')));
 
+// Fonts: pick one from the palette; it previews while you move, and Esc undoes the preview.
+await page2.keyboard.press('Control+Shift+p');
+await page2.keyboard.type('choose the code font');
+await page2.keyboard.press('Enter');
+await page2.waitForTimeout(150);
+const rows = await page2.$$eval('#palette li .label', l => l.map(x => x.textContent));
+assert.ok(rows.includes('Consolas'), 'Consolas listed: ' + rows.join(', '));
+await page2.screenshot({ path: path.join(out, 'fonts.png') });
+await page2.keyboard.type('consolas');
+await page2.keyboard.press('Enter');
+await page2.waitForTimeout(150);
+assert.match(await page2.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-code')), /Consolas/);
+assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'settings.json'), 'utf8')).codeFont, 'Consolas');
+await page2.keyboard.press('Control+Shift+p');
+await page2.keyboard.type('choose the reading font');
+await page2.keyboard.press('Enter');
+await page2.keyboard.type('georgia');
+await page2.waitForTimeout(150);
+assert.match(await page2.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-read')), /Georgia/);
+await page2.keyboard.press('Escape');
+assert.doesNotMatch(await page2.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-read')), /"Georgia"/);
+
 // ---------- Blank start ----------
 // Leave a saved file and an unsaved draft open, then restart with "start with a blank page" on.
 await page2.evaluate(() => window.__recto.setSetting('startBlank', true));

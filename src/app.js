@@ -24,7 +24,7 @@ const emptyEl = $('#empty');
 // ---------- state ----------
 let settings = {
   theme: 'system', fontSize: 14, wrap: false, lineNums: true, sidebar: false, preview: false,
-  folder: null, recent: [], recentFolders: [], trimOnSave: true, spellcheck: true, showWhitespace: false, saveOnBlur: false, tone: 'warm',
+  folder: null, recent: [], recentFolders: [], codeFont: '', trimOnSave: true, spellcheck: true, showWhitespace: false, saveOnBlur: false, tone: 'warm',
   layout: 'classic', prevLayout: 'classic', font: 'serif', proseLineNums: false, startBlank: false,
 };
 let systemDark = false;
@@ -793,6 +793,8 @@ const COMMANDS = [
   ['Layout: classic', '', () => setLayout('classic')],
   ['Layout: focus', 'Ctrl+K Z', () => setLayout('focus')],
   ['Toggle focus mode', 'F11', toggleZen],
+  ['Font: choose the reading font…', '', () => pickFont('font')],
+  ['Font: choose the code font…', '', () => pickFont('codeFont')],
   ['Reading font: serif', '', () => setSetting('font', 'serif')],
   ['Reading font: sans', '', () => setSetting('font', 'sans')],
   ['Reading font: mono', '', () => setSetting('font', 'mono')],
@@ -941,13 +943,55 @@ const FONTS = {
   mono: 'var(--font-mono)',
 };
 
+// A font name picked from the list, or one of the three built-in styles.
+const readStack = f => FONTS[f] || (f ? `"${f}", ${FONTS.serif}` : FONTS.serif);
+const codeStack = f => (f ? `"${f}", var(--font-mono)` : 'var(--font-mono)');
+
+// A font is installed if naming it changes how text measures, against two different fallbacks.
+const measure = document.createElement('canvas').getContext('2d');
+function hasFont(name) {
+  const width = stack => { measure.font = `72px ${stack}`; return measure.measureText('mmmmmmmmmmlli 日本語').width; };
+  return ['monospace', 'serif', 'sans-serif'].some(fb => width(`"${name}", ${fb}`) !== width(fb));
+}
+
+const READ_FONTS = ['Sitka Text', 'Georgia', 'Cambria', 'Constantia', 'Palatino Linotype', 'Book Antiqua', 'Segoe UI', 'Calibri', 'Candara', 'Corbel', 'Arial', 'Verdana', 'Trebuchet MS', 'Tahoma', 'Yu Mincho', 'Yu Gothic', 'Meiryo'];
+const CODE_FONTS = ['IBM Plex Mono', 'Cascadia Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'Consolas', 'Lucida Console', 'Courier New', 'Inconsolata', 'Hack', 'Roboto Mono'];
+
+// Pick a font with the palette. It previews as you move through the list, and Esc puts the old one back.
+function pickFont(key) {
+  const code = key === 'codeFont';
+  const stack = code ? codeStack : readStack;
+  const prop = code ? '--font-code' : '--font-read';
+  const show = f => document.documentElement.style.setProperty(prop, stack(f));
+  const keep = settings[key];
+  const installed = (code ? CODE_FONTS : READ_FONTS).filter(hasFont);
+  openPalette({
+    placeholder: code ? 'Font for code' : 'Font for notes and writing',
+    cancel: () => show(keep),
+    source: q => {
+      const names = installed.filter(n => n.toLowerCase().includes(q.trim().toLowerCase()));
+      const typed = q.trim();
+      if (typed && !installed.some(n => n.toLowerCase() === typed.toLowerCase()) && hasFont(typed)) names.unshift(typed);
+      const row = (label, value) => ({
+        label, detail: keep === value ? 'current' : '', font: value ? stack(value) : undefined,
+        preview: () => show(value), run: () => setSetting(key, value),
+      });
+      const list = names.map(n => row(n, n));
+      if (!typed) list.unshift(row(code ? 'Recto default' : 'Serif (Recto default)', code ? '' : 'serif'));
+      if (!list.length) return [{ label: `"${typed}" isn't installed on this computer`, run: () => show(keep) }];
+      return list;
+    },
+  });
+}
+
 function applySettings() {
   const dark = isDark();
   const root = document.documentElement;
   zen = settings.layout === 'focus';
   root.dataset.theme = dark ? 'dark' : 'light';
   root.dataset.tone = settings.tone;
-  root.style.setProperty('--font-read', FONTS[settings.font] || FONTS.serif);
+  root.style.setProperty('--font-read', readStack(settings.font));
+  root.style.setProperty('--font-code', codeStack(settings.codeFont));
   document.body.classList.toggle('layout-page', settings.layout === 'page');
   const css = getComputedStyle(root);
   api.setTheme({ dark, bg: css.getPropertyValue('--page').trim(), fg: css.getPropertyValue('--text-3').trim() });
