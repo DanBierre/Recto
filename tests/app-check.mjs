@@ -261,6 +261,14 @@ await page2.waitForTimeout(200);
 assert.match(await page2.textContent('#status'), /2 words/);
 assert.match(await page2.textContent('#status'), /8 chars/);
 
+// The status bar has a wrap button that flips word wrap for the tab.
+assert.match(await page2.textContent('#status'), /Wrap/);
+const wrapBefore = await page2.evaluate(() => window.__recto.active().wrap);
+await page2.click('#status button:has-text("rap")');
+assert.equal(await page2.evaluate(() => window.__recto.active().wrap), !wrapBefore);
+await page2.click('#status button:has-text("rap")');
+assert.equal(await page2.evaluate(() => window.__recto.active().wrap), wrapBefore);
+
 // A big file gets an "Opening" note first.
 const big = path.join(profile, 'big.txt');
 fs.writeFileSync(big, 'a line of text in a big file\n'.repeat(90000));

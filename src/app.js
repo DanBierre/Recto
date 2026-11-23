@@ -82,6 +82,7 @@ function toggleWrap() {
   active.wrap = !active.wrap;
   applySettings();
   flash(active.wrap ? 'Wrap on' : 'Wrap off');
+  renderStatus();
   scheduleSession();
 }
 
@@ -513,6 +514,8 @@ function renderStatus() {
     add(`${countWords(body).toLocaleString()} words`);
     add(`${countChars(body).toLocaleString()} chars`);
   }
+  // The page layout always wraps, so the button only means something in the others.
+  if (settings.layout !== 'page') add(active.wrap ? 'Wrap' : 'No wrap', { onClick: toggleWrap, title: 'Word wrap (Alt+Z)' });
   add(active.indent.tabs ? `Tabs: ${active.indent.size}` : `Spaces: ${active.indent.size}`, { onClick: pickIndent, title: 'Change indent' });
   const enc = encodingLabel(active);
   if (enc !== 'UTF-8') add(enc, { onClick: pickEncoding, title: 'Change encoding' });
