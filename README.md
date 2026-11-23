@@ -64,6 +64,11 @@ The first time it runs, Recto asks a few quick questions (theme, layout, font, r
 - Find and replace, plus find in files across an open folder
 - Multiple cursors, column select, move and duplicate lines
 - Markdown preview
+- Split view: a read-only copy of any tab beside the one you're typing in
+- Pin a tab to keep it at the left and safe from a stray close
+- Word and character counts, and a Wrap button in the status bar
+- Recent files and recent folders on the welcome screen
+- Line tools in the palette: sort, tidy spaces, change case
 - Print, or export to PDF, a web page, a Word document or plain text (`Ctrl+Shift+E`)
 - Turn a CSV into JSON and back again, each into a new tab
 - Opens more than text: pictures and PDFs to look at, CSV files as a table, and the words out of Word files
