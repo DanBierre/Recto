@@ -24,7 +24,7 @@ const emptyEl = $('#empty');
 // ---------- state ----------
 let settings = {
   theme: 'system', fontSize: 14, wrap: false, lineNums: true, sidebar: false, preview: false,
-  folder: null, recent: [], trimOnSave: true, spellcheck: true, showWhitespace: false, saveOnBlur: false, tone: 'warm',
+  folder: null, recent: [], recentFolders: [], trimOnSave: true, spellcheck: true, showWhitespace: false, saveOnBlur: false, tone: 'warm',
   layout: 'classic', prevLayout: 'classic', font: 'serif', proseLineNums: false, startBlank: false,
 };
 let systemDark = false;
@@ -692,6 +692,7 @@ const COMMANDS = [
   ['New file', 'Ctrl+N', newFile],
   ['Open file…', 'Ctrl+O', openDialog],
   ['Open folder…', '', async () => { const p = await api.folderDialog(); if (p) setFolder(p); }],
+  ['Open recent folder…', '', openRecentFolder],
   ['Close folder', '', () => setFolder(null)],
   ['Save', 'Ctrl+S', () => save()],
   ['Save as…', 'Ctrl+Shift+S', () => save(active, { as: true })],
@@ -1147,6 +1148,9 @@ async function setFolder(p) {
   expanded.clear();
   api.saveSettings({ folder: p });
   if (p) {
+    settings.recentFolders = [p, ...settings.recentFolders.filter(x => x.toLowerCase() !== p.toLowerCase())].slice(0, 10);
+    api.saveSettings({ recentFolders: settings.recentFolders });
+    renderRecent();
     if (!settings.sidebar) setSetting('sidebar', true);
     loadFolderFiles();
   }
@@ -1424,6 +1428,41 @@ function renderRecent() {
     ul.append(li);
   }
   box.hidden = !ul.children.length;
+
+  const fbox = $('#recent-folders');
+  const ful = fbox.querySelector('ul');
+  ful.textContent = '';
+  for (const p of settings.recentFolders.slice(0, 3)) {
+    const li = document.createElement('li');
+    li.title = p;
+    const name = document.createElement('span');
+    name.textContent = basename(p);
+    const dir = document.createElement('span');
+    dir.className = 'dir';
+    dir.textContent = dirname(p).replace(/^C:\\Users\\[^\\]+/i, '~');
+    li.append(name, dir);
+    li.addEventListener('click', () => openFolder(p));
+    ful.append(li);
+  }
+  fbox.hidden = !ful.children.length;
+}
+
+// A folder that's gone gets dropped from the list instead of failing every time.
+async function openFolder(p) {
+  const r = await api.readFile(p);
+  if (r.dir) return setFolder(p);
+  settings.recentFolders = settings.recentFolders.filter(x => x.toLowerCase() !== p.toLowerCase());
+  api.saveSettings({ recentFolders: settings.recentFolders });
+  renderRecent();
+  toast(`${basename(p)}: that folder isn't there any more.`);
+}
+
+function openRecentFolder() {
+  const list = settings.recentFolders.map(p => ({ label: p, detail: p === settings.folder ? 'current' : '', run: () => openFolder(p) }));
+  openPalette({
+    placeholder: list.length ? 'Open a recent folder' : 'No recent folders yet. Use Open folder…',
+    source: q => rank(list, q),
+  });
 }
 
 // ---------- save when Recto loses focus ----------
