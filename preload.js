@@ -19,6 +19,8 @@ contextBridge.exposeInMainWorld('recto', {
   writeZip: (p, parts) => ipcRenderer.invoke('doc:zip', p, parts),
   folderDialog: () => ipcRenderer.invoke('folder:open-dialog'),
   listFolder: p => ipcRenderer.invoke('folder:list', p),
+  checkUpdate: () => ipcRenderer.invoke('update:check'),
+  openUpdate: () => ipcRenderer.invoke('update:open'),
   folderFiles: p => ipcRenderer.invoke('folder:files', p),
   askUnsaved: name => ipcRenderer.invoke('dialog:unsaved', name),
   reveal: p => ipcRenderer.invoke('shell:reveal', p),

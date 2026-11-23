@@ -80,7 +80,7 @@ Most of these came from people's gripes about the editors they already use. Rect
 
 - **No AI, no account.** It's a text editor. There's nothing to sign in to and nothing trying to finish your sentences.
 - **No licence pop-ups or update nags.** It's free, and it won't interrupt you to say so.
-- **Sends nothing.** No telemetry, no crash reports, no phoning home. Your words stay on your computer.
+- **Sends nothing on its own.** No telemetry, no crash reports, no background update checks. The one exception is "Check for updates", which only runs when you pick it and only asks GitHub for the latest version number. Your words stay on your computer.
 - **Quiet notes instead of pop-ups.** Saved, exported, reloaded: a small note shows in the corner and fades. Nothing to click away.
 - **No clutter.** No toolbars, no ribbon, no minimap. Focus mode (`F11`) hides the rest too.
 - **Settings live in the command palette.** Type what you want to change. No settings page to dig through.

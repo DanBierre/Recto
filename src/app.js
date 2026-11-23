@@ -728,6 +728,7 @@ const COMMANDS = [
   ['Reading font: sans', '', () => setSetting('font', 'sans')],
   ['Reading font: mono', '', () => setSetting('font', 'mono')],
   ['Toggle start with a blank page', '', () => { setSetting('startBlank', !settings.startBlank); flash(settings.startBlank ? 'Starts with a blank page' : 'Starts where you left off'); }],
+  ['Check for updates', '', checkForUpdates],
   ['Toggle word wrap', 'Alt+Z', toggleWrap],
   ['Toggle line numbers', '', toggleLineNums],
   ['Toggle spellcheck', '', () => { setSetting('spellcheck', !settings.spellcheck); flash(settings.spellcheck ? 'Spellcheck on for prose' : 'Spellcheck off'); }],
@@ -1304,6 +1305,16 @@ window.addEventListener('resize', closeMenu);
 window.addEventListener('resize', () => tabsEl.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
 document.addEventListener('scroll', closeMenu, true);
 
+// The only time Recto talks to the internet, and only because you asked.
+async function checkForUpdates() {
+  flash('Checking…');
+  const r = await api.checkUpdate();
+  if (r.error) return toast(r.error);
+  if (!r.newer) return toast(`You're on the latest version (${r.current}).`);
+  toast(`Recto ${r.latest} is out. You have ${r.current}. Opening the download page.`);
+  api.openUpdate();
+}
+
 function copyPath(p) {
   navigator.clipboard.writeText(p).then(() => flash('Path copied'));
 }
@@ -1513,5 +1524,5 @@ window.__recto = {
   docs: () => docs, active: () => active, view, openPath, newFile, save, closeDoc, sessionData, isDirty, setSetting,
   undo: () => undo(view), settings: () => settings, pickEncoding, openFindInFiles, tabMenu,
   exportAs, printDoc, openExport, convert, csvToJson, jsonToCsv, openThemes, pickTheme, setLayout, toggleZen, toggleTable,
-  toggleLineNums, restoreSession, openSetup,
+  toggleLineNums, restoreSession, openSetup, checkForUpdates,
 };
