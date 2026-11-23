@@ -153,3 +153,11 @@ export function extensions({ lang, wrap, lineNums, indent, spell, ws, onUpdate }
 }
 
 export { EditorState, EditorView, EditorSelection };
+
+// A read-only copy of a tab for the split pane.
+export function referenceExtensions({ lang, wrap }) {
+  return [
+    EditorState.readOnly.of(true), syntaxHighlighting(highlight), language.of(languageExtension(lang)),
+    wrap ? EditorView.lineWrapping : [], look, scrollPastEnd(),
+  ];
+}

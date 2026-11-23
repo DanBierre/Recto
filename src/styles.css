@@ -741,3 +741,13 @@ body.layout-page .cm-activeLine { background: transparent; }
 #setup .skip:hover { color: var(--text); }
 #setup .hint { margin-left: auto; color: var(--text-4); }
 @media (max-width: 560px) { #setup .note { font-size: 19px; } #setup .hint { display: none; } }
+
+/* Split view: a read-only second pane beside the editor */
+#pane.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+#side { display: flex; flex-direction: column; min-width: 0; min-height: 0; border-left: 1px solid var(--line); background: var(--page); }
+#side[hidden] { display: none; }
+#side .side-bar { display: flex; align-items: center; gap: 8px; padding: 4px 10px; font-size: 12px; color: var(--text-3); font-family: var(--font-ui); border-bottom: 1px solid var(--line); }
+#side .side-bar span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#side .side-bar button { all: unset; cursor: pointer; padding: 0 6px; border-radius: 4px; }
+#side .side-bar button:hover { background: var(--active-line); }
+#side .side-ed { flex: 1; min-height: 0; }

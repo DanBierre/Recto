@@ -4,7 +4,7 @@ import { openSearchPanel } from '@codemirror/search';
 import { marked } from 'marked';
 import {
   EditorState, EditorView, EditorSelection, extensions, language, wrapping, gutters, indentation, indentExtension,
-  spelling, whitespace, spellExt, whitespaceExt,
+  spelling, whitespace, spellExt, whitespaceExt, referenceExtensions,
 } from './editor.js';
 import { lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
 import { foldGutter } from '@codemirror/language';
@@ -51,7 +51,46 @@ function makeState(d, text, selection) {
   });
 }
 
+// ---------- split view: a read-only second pane ----------
+let splitDoc = null;
+const sideEl = $('#side');
+const side = new EditorView({ parent: sideEl.querySelector('.side-ed') });
+sideEl.querySelector('button').addEventListener('click', () => setSplit(null));
+
+function setSplit(d) {
+  splitDoc = d;
+  renderSplit();
+  scheduleSession();
+}
+
+function renderSplit() {
+  if (splitDoc && !docs.includes(splitDoc)) splitDoc = null;
+  const on = !!splitDoc && !!active && !showsViewer(active) && !active.view;
+  $('#pane').classList.toggle('split', on);
+  sideEl.hidden = !on;
+  if (!on) return;
+  sideEl.querySelector('span').textContent = `${docName(splitDoc)} (read only)`;
+  const text = textOf(splitDoc);
+  if (side.dom.dataset.doc !== String(splitDoc.id)) {
+    side.dom.dataset.doc = splitDoc.id;
+    side.setState(EditorState.create({ doc: text, extensions: referenceExtensions({ lang: splitDoc.lang, wrap: splitDoc.wrap || settings.layout === 'page' }) }));
+  } else if (!side.state.doc.eq(text)) {
+    side.dispatch({ changes: { from: 0, to: side.state.doc.length, insert: text } });
+  }
+}
+
+function splitPicker() {
+  const others = () => docs.filter(d => !d.view);
+  openPalette({
+    placeholder: 'Show which tab beside this one?',
+    source: q => others()
+      .map(d => ({ label: d === active ? `${docName(d)} (this tab, second view)` : docName(d), run: () => setSplit(d) }))
+      .filter(i => i.label.toLowerCase().includes(q.toLowerCase())),
+  });
+}
+
 function onUpdate(u) {
+  if (u.docChanged && splitDoc === active && side.state.doc.length === u.startState.doc.length) side.dispatch({ changes: u.changes });
   if (u.docChanged) {
     renderTabs();
     scheduleSession();
@@ -111,6 +150,7 @@ function activate(d, { focus = true } = {}) {
   }
   emptyEl.hidden = !!d;
   renderViewer();
+  renderSplit();
   // Focus only once the editor is visible, or the first file from the welcome screen gets no cursor.
   if (d && focus && !$('#editor').hidden) view.focus();
   if (!d) renderRecent();
@@ -210,6 +250,7 @@ async function closeDoc(d, { ask = true } = {}) {
     active = null;
     activate(docs[Math.min(i, docs.length - 1)] || null);
   } else renderTabs();
+  renderSplit();
   watchOpenFiles();
   scheduleSession();
   return true;
@@ -416,6 +457,7 @@ function sessionData() {
   if (active) { active.state = view.state; active.scroll = view.scrollDOM.scrollTop; }
   return {
     active: docs.indexOf(active),
+    split: docs.indexOf(splitDoc),
     closed: closedStack.slice(-20),
     docs: docs.map(d => {
       const st = stateOf(d);
@@ -471,6 +513,7 @@ async function restoreSession(session) {
     docs.push(d);
   }
   closedStack = session.closed || [];
+  splitDoc = docs[session.split] || null;
   activate(docs[session.active] || docs[0] || null);
   watchOpenFiles();
 }
@@ -721,6 +764,8 @@ const COMMANDS = [
   ['Save all', '', saveAll],
   ['Close tab', 'Ctrl+W', () => active && closeDoc(active)],
   ['Pin or unpin tab', '', () => togglePin()],
+  ['Split view: show a tab beside this one', '', splitPicker],
+  ['Split view: close', '', () => setSplit(null)],
   ['Close other tabs', '', () => closeEach(docs.filter(x => x !== active))],
   ['Close all tabs', '', () => closeEach([...docs])],
   ['Reopen closed tab', 'Ctrl+Shift+T', reopenClosed],
@@ -1369,6 +1414,7 @@ function tabMenu(d, x, y) {
   const i = docs.indexOf(d);
   showMenu(x, y, [
     { label: d.pinned ? 'Unpin' : 'Pin', run: () => togglePin(d) },
+    d === splitDoc ? { label: 'Close split view', run: () => setSplit(null) } : !d.view && { label: 'Show beside current tab', run: () => setSplit(d) },
     { label: 'Close', key: 'Ctrl+W', run: () => closeDoc(d) },
     { label: 'Close others', run: () => closeEach(docs.filter(t => t !== d)) },
     i < docs.length - 1 && { label: 'Close tabs to the right', run: () => closeEach(docs.slice(i + 1)) },
@@ -1588,5 +1634,5 @@ window.__recto = {
   docs: () => docs, active: () => active, view, openPath, newFile, save, closeDoc, sessionData, isDirty, setSetting,
   undo: () => undo(view), settings: () => settings, pickEncoding, openFindInFiles, tabMenu,
   exportAs, printDoc, openExport, convert, csvToJson, jsonToCsv, openThemes, pickTheme, setLayout, toggleZen, toggleTable,
-  toggleLineNums, restoreSession, openSetup, checkForUpdates,
+  toggleLineNums, restoreSession, openSetup, checkForUpdates, setSplit, side,
 };

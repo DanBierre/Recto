@@ -291,6 +291,20 @@ await page2.waitForTimeout(200);
 assert.match(await page2.textContent('#palette ul'), new RegExp(path.basename(profile)));
 await page2.keyboard.press('Escape');
 
+// Split view shows a read-only copy of a tab beside the editor, and keeps it in step.
+await open(page2, jp);
+await page2.evaluate(() => { const r = window.__recto; r.setSplit(r.active()); });
+assert.ok(await page2.isVisible('#side'));
+assert.match(await page2.textContent('#side .cm-content'), /日本語です/);
+await page2.click('#editor .cm-content');
+await page2.keyboard.press('Control+Home');
+await page2.keyboard.type('ZZmirror');
+assert.match(await page2.textContent('#side .cm-content'), /ZZmirror/);
+await page2.screenshot({ path: path.join(out, 'split.png') });
+await page2.keyboard.press('Control+z');
+await page2.evaluate(() => window.__recto.setSplit(null));
+assert.ok(!(await page2.isVisible('#side')));
+
 // ---------- Blank start ----------
 // Leave a saved file and an unsaved draft open, then restart with "start with a blank page" on.
 await page2.evaluate(() => window.__recto.setSetting('startBlank', true));
