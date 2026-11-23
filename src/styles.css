@@ -261,6 +261,10 @@ kbd { font: 11px var(--font-mono); color: var(--text-3); }
 .tab.dirty .close { visibility: visible; }
 .tab.dirty .close::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--text-2); }
 .tab.dirty .close:hover::before { content: '×'; width: auto; height: auto; background: none; border-radius: 0; }
+.tab.pinned { max-width: 130px; }
+.tab.pinned .name::before { content: ''; display: inline-block; width: 5px; height: 5px; margin-right: 7px; border-radius: 50%; background: var(--text-3); vertical-align: middle; }
+.tab.pinned:not(.dirty) .close { display: none; }
+.tab.pinned.dirty .close:hover::before { content: ''; width: 7px; height: 7px; background: var(--text-2); border-radius: 50%; }
 #chord {
   align-self: center;
   margin: 0 10px;

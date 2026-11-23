@@ -130,7 +130,7 @@ function renderTabs() {
   const names = docs.map(docName);
   for (const d of docs) {
     const tab = document.createElement('div');
-    tab.className = 'tab' + (d === active ? ' active' : '') + (isDirty(d) ? ' dirty' : '');
+    tab.className = 'tab' + (d === active ? ' active' : '') + (isDirty(d) ? ' dirty' : '') + (d.pinned ? ' pinned' : '');
     tab.draggable = true;
     tab.title = d.path || docName(d);
     const name = document.createElement('span');
@@ -149,10 +149,10 @@ function renderTabs() {
     close.className = 'close';
     close.tabIndex = -1;
     close.setAttribute('aria-label', 'Close tab');
-    close.addEventListener('click', e => { e.stopPropagation(); closeDoc(d); });
+    close.addEventListener('click', e => { e.stopPropagation(); if (!d.pinned) closeDoc(d); });
     tab.append(close);
     tab.addEventListener('mousedown', e => {
-      if (e.button === 1) { e.preventDefault(); closeDoc(d); }
+      if (e.button === 1) { e.preventDefault(); if (!d.pinned) closeDoc(d); }
       else if (e.button === 0) activate(d);
     });
     tab.addEventListener('contextmenu', e => { e.preventDefault(); tabMenu(d, e.clientX, e.clientY); });
@@ -165,12 +165,31 @@ function renderTabs() {
       const from = docs.findIndex(x => x.id === id);
       const [moved] = docs.splice(from, 1);
       docs.splice(docs.indexOf(d) + (from <= docs.indexOf(d) ? 1 : 0), 0, moved);
+      keepPinnedFirst();
       renderTabs();
       scheduleSession();
     });
     tabsEl.append(tab);
   }
   tabsEl.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+// Pinned tabs sit at the left. The sort is stable, so the order inside each group stays as it was.
+function keepPinnedFirst() {
+  docs.sort((a, b) => Boolean(b.pinned) - Boolean(a.pinned));
+}
+
+function togglePin(d = active) {
+  if (!d) return;
+  d.pinned = !d.pinned;
+  keepPinnedFirst();
+  renderTabs();
+  scheduleSession();
+}
+
+// Close these tabs one by one (asking about unsaved ones), skipping pinned tabs.
+async function closeEach(list) {
+  for (const t of list.filter(x => !x.pinned)) if (!(await closeDoc(t))) break;
 }
 
 tabsEl.addEventListener('dblclick', e => { if (e.target === tabsEl) newFile(); });
@@ -402,7 +421,7 @@ function sessionData() {
       const dirty = isDirty(d);
       return {
         path: d.path, title: d.title, lang: d.lang, wrap: d.wrap, eol: d.eol, encoding: d.encoding, bom: d.bom, mtime: d.mtime,
-        view: d.view, table: d.table, source: d.source, near: d.near,
+        view: d.view, table: d.table, source: d.source, near: d.near, pinned: d.pinned,
         text: dirty || !d.path ? st.doc.toString() : undefined,
         saved: dirty && d.path ? d.saved.toString() : undefined,
         anchor: st.selection.main.anchor, head: st.selection.main.head, scroll: d.scroll,
@@ -447,7 +466,7 @@ async function restoreSession(session) {
     const sel = EditorSelection.single(Math.min(s.anchor || 0, len), Math.min(s.head || 0, len));
     const d = newDoc({ path: s.path, title: s.title, text: text || '', saved, lang: s.lang, wrap: s.wrap, eol: s.eol, encoding: s.encoding, bom: s.bom, mtime, selection: sel });
     d.scroll = s.scroll || 0;
-    Object.assign(d, { table: s.table, source: s.source, near: s.near });
+    Object.assign(d, { table: s.table, source: s.source, near: s.near, pinned: s.pinned });
     docs.push(d);
   }
   closedStack = session.closed || [];
@@ -698,8 +717,9 @@ const COMMANDS = [
   ['Save as…', 'Ctrl+Shift+S', () => save(active, { as: true })],
   ['Save all', '', saveAll],
   ['Close tab', 'Ctrl+W', () => active && closeDoc(active)],
-  ['Close other tabs', '', async () => { for (const d of docs.filter(x => x !== active)) if (!(await closeDoc(d))) break; }],
-  ['Close all tabs', '', async () => { for (const d of [...docs]) if (!(await closeDoc(d))) break; }],
+  ['Pin or unpin tab', '', () => togglePin()],
+  ['Close other tabs', '', () => closeEach(docs.filter(x => x !== active))],
+  ['Close all tabs', '', () => closeEach([...docs])],
   ['Reopen closed tab', 'Ctrl+Shift+T', reopenClosed],
   ['Reload from disk', '', () => active && reloadFromDisk(active, { force: true })],
   ['Show in File Explorer', '', () => active?.path && api.reveal(active.path)],
@@ -1342,8 +1362,8 @@ api.onContextMenu(p => {
 
 function tabMenu(d, x, y) {
   const i = docs.indexOf(d);
-  const closeEach = async list => { for (const t of list) if (!(await closeDoc(t))) break; };
   showMenu(x, y, [
+    { label: d.pinned ? 'Unpin' : 'Pin', run: () => togglePin(d) },
     { label: 'Close', key: 'Ctrl+W', run: () => closeDoc(d) },
     { label: 'Close others', run: () => closeEach(docs.filter(t => t !== d)) },
     i < docs.length - 1 && { label: 'Close tabs to the right', run: () => closeEach(docs.slice(i + 1)) },

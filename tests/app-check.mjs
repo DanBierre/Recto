@@ -252,12 +252,48 @@ await page2.waitForTimeout(200);
 assert.ok(await page2.locator('#recent li').count() >= 2);
 await page2.screenshot({ path: path.join(out, 'empty.png') });
 
+// ---------- Quality of life ----------
+// Characters are counted next to words, because Japanese has no spaces to count words by.
+const jp = path.join(profile, 'nihongo.txt');
+fs.writeFileSync(jp, '日本語です\n二行目');
+await open(page2, jp);
+await page2.waitForTimeout(200);
+assert.match(await page2.textContent('#status'), /2 words/);
+assert.match(await page2.textContent('#status'), /8 chars/);
+
+// A big file gets an "Opening" note first.
+const big = path.join(profile, 'big.txt');
+fs.writeFileSync(big, 'a line of text in a big file\n'.repeat(90000));
+await open(page2, big);
+assert.match(await page2.textContent('#flash'), /Opening a big file/);
+
+// Check for updates asks GitHub and always answers in a toast.
+await page2.evaluate(() => window.__recto.checkForUpdates());
+assert.match(await page2.textContent('#toast'), /latest version|is out|reach GitHub|GitHub said/);
+
+// Opening a folder remembers it, and the palette lists it.
+await open(page2, profile);
+await page2.waitForTimeout(200);
+const remembered = JSON.parse(fs.readFileSync(path.join(profile, 'settings.json'), 'utf8')).recentFolders;
+assert.equal(remembered[0].toLowerCase(), profile.toLowerCase());
+await page2.keyboard.press('Control+Shift+p');
+await page2.keyboard.type('recent folder');
+await page2.keyboard.press('Enter');
+await page2.waitForTimeout(200);
+assert.match(await page2.textContent('#palette ul'), new RegExp(path.basename(profile)));
+await page2.keyboard.press('Escape');
+
 // ---------- Blank start ----------
 // Leave a saved file and an unsaved draft open, then restart with "start with a blank page" on.
 await page2.evaluate(() => window.__recto.setSetting('startBlank', true));
 await open(page2, md);
 await page2.evaluate(() => window.__recto.newFile());
 await page2.keyboard.type('draft kept over a blank start');
+// Pin the draft: it moves to the left, and stays pinned after a restart.
+await page2.click('.tab.active', { button: 'right' });
+await page2.locator('#menu >> text="Pin"').click();
+assert.equal(await page2.evaluate(() => document.querySelector('.tab').classList.contains('pinned')), true);
+assert.equal(await page2.evaluate(() => window.__recto.docs()[0].pinned), true);
 await page2.waitForTimeout(800);
 await app2.close();
 
@@ -276,6 +312,7 @@ const blank = await page3.evaluate(() => {
 assert.deepEqual(blank.active, { path: null, text: '' });
 assert.ok(blank.texts.includes('draft kept over a blank start'), 'unsaved draft kept');
 assert.deepEqual(blank.paths, [], 'saved files not reopened');
+assert.equal(await page3.evaluate(() => window.__recto.docs().some(d => d.pinned)), true, 'pin kept after restart');
 console.log('blank ok');
 await app3.close();
 
