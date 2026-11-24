@@ -64,12 +64,17 @@ The first time it runs, Recto asks a few quick questions (theme, layout, font, r
 - Find and replace, plus find in files across an open folder
 - Multiple cursors, column select, move and duplicate lines
 - Markdown preview
+- Split view: a read-only copy of any tab beside the one you're typing in
+- Pin a tab to keep it at the left and safe from a stray close
+- Word and character counts, and a Wrap button in the status bar
+- Recent files and recent folders on the welcome screen
+- Line tools in the palette: sort, tidy spaces, change case
 - Print, or export to PDF, a web page, a Word document or plain text (`Ctrl+Shift+E`)
 - Turn a CSV into JSON and back again, each into a new tab
 - Opens more than text: pictures and PDFs to look at, CSV files as a table, and the words out of Word files
 - Eight themes to pick from: Paper, Ink, Cloud, Slate, Sage, Forest, Rose and Plum, or follow Windows light and dark
 - Three layouts: Classic, Page (a centred sheet, nice for writing) and Focus
-- A reading font for notes and prose (serif, sans or mono), with code staying in mono
+- Pick your own fonts from the palette (`Font: choose…`): one for notes, one for code. It only lists fonts installed on your computer, shows each in its own style, and previews as you move
 - Keeps your file's encoding (UTF-8, UTF-16, Windows-1252) and line endings (Windows or Unix) as they were. A file with a mix of the two gets tidied to one style, and Recto tells you when it opens
 - Can start with a blank page instead of your last files, if you'd rather
 - "Edit with Recto" in the Explorer right-click menu
@@ -80,7 +85,7 @@ Most of these came from people's gripes about the editors they already use. Rect
 
 - **No AI, no account.** It's a text editor. There's nothing to sign in to and nothing trying to finish your sentences.
 - **No licence pop-ups or update nags.** It's free, and it won't interrupt you to say so.
-- **Sends nothing.** No telemetry, no crash reports, no phoning home. Your words stay on your computer.
+- **Sends nothing on its own.** No telemetry, no crash reports, no background update checks. The one exception is "Check for updates", which only runs when you pick it and only asks GitHub for the latest version number. Your words stay on your computer.
 - **Quiet notes instead of pop-ups.** Saved, exported, reloaded: a small note shows in the corner and fades. Nothing to click away.
 - **No clutter.** No toolbars, no ribbon, no minimap. Focus mode (`F11`) hides the rest too.
 - **Settings live in the command palette.** Type what you want to change. No settings page to dig through.

@@ -4,13 +4,13 @@ import { openSearchPanel } from '@codemirror/search';
 import { marked } from 'marked';
 import {
   EditorState, EditorView, EditorSelection, extensions, language, wrapping, gutters, indentation, indentExtension,
-  spelling, whitespace, spellExt, whitespaceExt,
+  spelling, whitespace, spellExt, whitespaceExt, referenceExtensions,
 } from './editor.js';
 import { lineNumbers, highlightActiveLineGutter } from '@codemirror/view';
 import { foldGutter } from '@codemirror/language';
 import { LANGUAGES, languageLabel, languageExtension } from './languages.js';
 import { openPalette, closePalette, paletteOpen } from './palette.js';
-import { detectEol, detectIndent, basename, dirname, relativeTo, fuzzy, languageFor, countWords, mixedEol } from './util.js';
+import { detectEol, detectIndent, basename, dirname, relativeTo, fuzzy, languageFor, countWords, countChars, mixedEol } from './util.js';
 import { docHtml, docxParts, markdownText, parseCsv, csvToJson, jsonToCsv } from './export.js';
 
 const api = window.recto;
@@ -24,7 +24,7 @@ const emptyEl = $('#empty');
 // ---------- state ----------
 let settings = {
   theme: 'system', fontSize: 14, wrap: false, lineNums: true, sidebar: false, preview: false,
-  folder: null, recent: [], trimOnSave: true, spellcheck: true, showWhitespace: false, saveOnBlur: false, tone: 'warm',
+  folder: null, recent: [], recentFolders: [], codeFont: '', trimOnSave: true, spellcheck: true, showWhitespace: false, saveOnBlur: false, tone: 'warm',
   layout: 'classic', prevLayout: 'classic', font: 'serif', proseLineNums: false, startBlank: false,
 };
 let systemDark = false;
@@ -51,7 +51,46 @@ function makeState(d, text, selection) {
   });
 }
 
+// ---------- split view: a read-only second pane ----------
+let splitDoc = null;
+const sideEl = $('#side');
+const side = new EditorView({ parent: sideEl.querySelector('.side-ed') });
+sideEl.querySelector('button').addEventListener('click', () => setSplit(null));
+
+function setSplit(d) {
+  splitDoc = d;
+  renderSplit();
+  scheduleSession();
+}
+
+function renderSplit() {
+  if (splitDoc && !docs.includes(splitDoc)) splitDoc = null;
+  const on = !!splitDoc && !!active && !showsViewer(active) && !active.view;
+  $('#pane').classList.toggle('split', on);
+  sideEl.hidden = !on;
+  if (!on) return;
+  sideEl.querySelector('span').textContent = `${docName(splitDoc)} (read only)`;
+  const text = textOf(splitDoc);
+  if (side.dom.dataset.doc !== String(splitDoc.id)) {
+    side.dom.dataset.doc = splitDoc.id;
+    side.setState(EditorState.create({ doc: text, extensions: referenceExtensions({ lang: splitDoc.lang, wrap: splitDoc.wrap || settings.layout === 'page' }) }));
+  } else if (!side.state.doc.eq(text)) {
+    side.dispatch({ changes: { from: 0, to: side.state.doc.length, insert: text } });
+  }
+}
+
+function splitPicker() {
+  const others = () => docs.filter(d => !d.view);
+  openPalette({
+    placeholder: 'Show which tab beside this one?',
+    source: q => others()
+      .map(d => ({ label: d === active ? `${docName(d)} (this tab, second view)` : docName(d), run: () => setSplit(d) }))
+      .filter(i => i.label.toLowerCase().includes(q.toLowerCase())),
+  });
+}
+
 function onUpdate(u) {
+  if (u.docChanged && splitDoc === active && side.state.doc.length === u.startState.doc.length) side.dispatch({ changes: u.changes });
   if (u.docChanged) {
     renderTabs();
     scheduleSession();
@@ -82,6 +121,7 @@ function toggleWrap() {
   active.wrap = !active.wrap;
   applySettings();
   flash(active.wrap ? 'Wrap on' : 'Wrap off');
+  renderStatus();
   scheduleSession();
 }
 
@@ -110,6 +150,7 @@ function activate(d, { focus = true } = {}) {
   }
   emptyEl.hidden = !!d;
   renderViewer();
+  renderSplit();
   // Focus only once the editor is visible, or the first file from the welcome screen gets no cursor.
   if (d && focus && !$('#editor').hidden) view.focus();
   if (!d) renderRecent();
@@ -130,7 +171,7 @@ function renderTabs() {
   const names = docs.map(docName);
   for (const d of docs) {
     const tab = document.createElement('div');
-    tab.className = 'tab' + (d === active ? ' active' : '') + (isDirty(d) ? ' dirty' : '');
+    tab.className = 'tab' + (d === active ? ' active' : '') + (isDirty(d) ? ' dirty' : '') + (d.pinned ? ' pinned' : '');
     tab.draggable = true;
     tab.title = d.path || docName(d);
     const name = document.createElement('span');
@@ -149,10 +190,10 @@ function renderTabs() {
     close.className = 'close';
     close.tabIndex = -1;
     close.setAttribute('aria-label', 'Close tab');
-    close.addEventListener('click', e => { e.stopPropagation(); closeDoc(d); });
+    close.addEventListener('click', e => { e.stopPropagation(); if (!d.pinned) closeDoc(d); });
     tab.append(close);
     tab.addEventListener('mousedown', e => {
-      if (e.button === 1) { e.preventDefault(); closeDoc(d); }
+      if (e.button === 1) { e.preventDefault(); if (!d.pinned) closeDoc(d); }
       else if (e.button === 0) activate(d);
     });
     tab.addEventListener('contextmenu', e => { e.preventDefault(); tabMenu(d, e.clientX, e.clientY); });
@@ -165,12 +206,31 @@ function renderTabs() {
       const from = docs.findIndex(x => x.id === id);
       const [moved] = docs.splice(from, 1);
       docs.splice(docs.indexOf(d) + (from <= docs.indexOf(d) ? 1 : 0), 0, moved);
+      keepPinnedFirst();
       renderTabs();
       scheduleSession();
     });
     tabsEl.append(tab);
   }
   tabsEl.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+}
+
+// Pinned tabs sit at the left. The sort is stable, so the order inside each group stays as it was.
+function keepPinnedFirst() {
+  docs.sort((a, b) => Boolean(b.pinned) - Boolean(a.pinned));
+}
+
+function togglePin(d = active) {
+  if (!d) return;
+  d.pinned = !d.pinned;
+  keepPinnedFirst();
+  renderTabs();
+  scheduleSession();
+}
+
+// Close these tabs one by one (asking about unsaved ones), skipping pinned tabs.
+async function closeEach(list) {
+  for (const t of list.filter(x => !x.pinned)) if (!(await closeDoc(t))) break;
 }
 
 tabsEl.addEventListener('dblclick', e => { if (e.target === tabsEl) newFile(); });
@@ -190,6 +250,7 @@ async function closeDoc(d, { ask = true } = {}) {
     active = null;
     activate(docs[Math.min(i, docs.length - 1)] || null);
   } else renderTabs();
+  renderSplit();
   watchOpenFiles();
   scheduleSession();
   return true;
@@ -225,6 +286,11 @@ async function openPath(p, { focus = true, line } = {}) {
     toast(`${basename(p)}: ${r.error}`);
     if (r.missing) pruneRecent(p);
     return null;
+  }
+  // Building the editor for a big file freezes the window for a moment. Show the note first.
+  if (r.content && r.content.length > 2e6) {
+    flash('Opening a big file…');
+    await new Promise(done => setTimeout(done, 60));
   }
   let d;
   if (r.view) {
@@ -391,13 +457,14 @@ function sessionData() {
   if (active) { active.state = view.state; active.scroll = view.scrollDOM.scrollTop; }
   return {
     active: docs.indexOf(active),
+    split: docs.indexOf(splitDoc),
     closed: closedStack.slice(-20),
     docs: docs.map(d => {
       const st = stateOf(d);
       const dirty = isDirty(d);
       return {
         path: d.path, title: d.title, lang: d.lang, wrap: d.wrap, eol: d.eol, encoding: d.encoding, bom: d.bom, mtime: d.mtime,
-        view: d.view, table: d.table, source: d.source, near: d.near,
+        view: d.view, table: d.table, source: d.source, near: d.near, pinned: d.pinned,
         text: dirty || !d.path ? st.doc.toString() : undefined,
         saved: dirty && d.path ? d.saved.toString() : undefined,
         anchor: st.selection.main.anchor, head: st.selection.main.head, scroll: d.scroll,
@@ -442,10 +509,11 @@ async function restoreSession(session) {
     const sel = EditorSelection.single(Math.min(s.anchor || 0, len), Math.min(s.head || 0, len));
     const d = newDoc({ path: s.path, title: s.title, text: text || '', saved, lang: s.lang, wrap: s.wrap, eol: s.eol, encoding: s.encoding, bom: s.bom, mtime, selection: sel });
     d.scroll = s.scroll || 0;
-    Object.assign(d, { table: s.table, source: s.source, near: s.near });
+    Object.assign(d, { table: s.table, source: s.source, near: s.near, pinned: s.pinned });
     docs.push(d);
   }
   closedStack = session.closed || [];
+  splitDoc = docs[session.split] || null;
   activate(docs[session.active] || docs[0] || null);
   watchOpenFiles();
 }
@@ -484,7 +552,13 @@ function renderStatus() {
   }
   add(`Ln ${line.number}, Col ${head - line.from + 1}`, { onClick: () => openGoTo(':'), title: 'Go to line' });
   // Counting words means reading the whole file on every keystroke, so skip it for big ones.
-  if ((active.lang === 'markdown' || active.lang === 'text') && st.doc.length < 1e6) add(`${countWords(st.doc.toString()).toLocaleString()} words`);
+  if (PROSE.has(active.lang) && st.doc.length < 1e6) {
+    const body = st.doc.toString();
+    add(`${countWords(body).toLocaleString()} words`);
+    add(`${countChars(body).toLocaleString()} chars`);
+  }
+  // The page layout always wraps, so the button only means something in the others.
+  if (settings.layout !== 'page') add(active.wrap ? 'Wrap' : 'No wrap', { onClick: toggleWrap, title: 'Word wrap (Alt+Z)' });
   add(active.indent.tabs ? `Tabs: ${active.indent.size}` : `Spaces: ${active.indent.size}`, { onClick: pickIndent, title: 'Change indent' });
   const enc = encodingLabel(active);
   if (enc !== 'UTF-8') add(enc, { onClick: pickEncoding, title: 'Change encoding' });
@@ -683,13 +757,17 @@ const COMMANDS = [
   ['New file', 'Ctrl+N', newFile],
   ['Open file…', 'Ctrl+O', openDialog],
   ['Open folder…', '', async () => { const p = await api.folderDialog(); if (p) setFolder(p); }],
+  ['Open recent folder…', '', openRecentFolder],
   ['Close folder', '', () => setFolder(null)],
   ['Save', 'Ctrl+S', () => save()],
   ['Save as…', 'Ctrl+Shift+S', () => save(active, { as: true })],
   ['Save all', '', saveAll],
   ['Close tab', 'Ctrl+W', () => active && closeDoc(active)],
-  ['Close other tabs', '', async () => { for (const d of docs.filter(x => x !== active)) if (!(await closeDoc(d))) break; }],
-  ['Close all tabs', '', async () => { for (const d of [...docs]) if (!(await closeDoc(d))) break; }],
+  ['Pin or unpin tab', '', () => togglePin()],
+  ['Split view: show a tab beside this one', '', splitPicker],
+  ['Split view: close', '', () => setSplit(null)],
+  ['Close other tabs', '', () => closeEach(docs.filter(x => x !== active))],
+  ['Close all tabs', '', () => closeEach([...docs])],
   ['Reopen closed tab', 'Ctrl+Shift+T', reopenClosed],
   ['Reload from disk', '', () => active && reloadFromDisk(active, { force: true })],
   ['Show in File Explorer', '', () => active?.path && api.reveal(active.path)],
@@ -715,10 +793,13 @@ const COMMANDS = [
   ['Layout: classic', '', () => setLayout('classic')],
   ['Layout: focus', 'Ctrl+K Z', () => setLayout('focus')],
   ['Toggle focus mode', 'F11', toggleZen],
+  ['Font: choose the reading font…', '', () => pickFont('font')],
+  ['Font: choose the code font…', '', () => pickFont('codeFont')],
   ['Reading font: serif', '', () => setSetting('font', 'serif')],
   ['Reading font: sans', '', () => setSetting('font', 'sans')],
   ['Reading font: mono', '', () => setSetting('font', 'mono')],
   ['Toggle start with a blank page', '', () => { setSetting('startBlank', !settings.startBlank); flash(settings.startBlank ? 'Starts with a blank page' : 'Starts where you left off'); }],
+  ['Check for updates', '', checkForUpdates],
   ['Toggle word wrap', 'Alt+Z', toggleWrap],
   ['Toggle line numbers', '', toggleLineNums],
   ['Toggle spellcheck', '', () => { setSetting('spellcheck', !settings.spellcheck); flash(settings.spellcheck ? 'Spellcheck on for prose' : 'Spellcheck off'); }],
@@ -738,6 +819,7 @@ const COMMANDS = [
   ['Set encoding…', '', () => active && pickEncoding()],
   ['Sort lines', 'F9', () => lines(ls => [...ls].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })))],
   ['Sort lines (case sensitive)', '', () => lines(ls => [...ls].sort())],
+  ['Sort lines (Z to A)', '', () => lines(ls => [...ls].sort((a, b) => b.localeCompare(a, undefined, { numeric: true })))],
   ['Reverse lines', '', () => lines(ls => [...ls].reverse())],
   ['Remove duplicate lines', '', () => lines(ls => [...new Set(ls)])],
   ['Remove blank lines', '', () => lines(ls => ls.filter(l => l.trim()))],
@@ -751,6 +833,7 @@ const COMMANDS = [
   ['Tools: snake_case', '', () => text(s => words(s).join('_'))],
   ['Tools: kebab-case', '', () => text(s => words(s).join('-'))],
   ['Tools: Trim trailing spaces', '', () => wholeOrSelection(trimmed)],
+  ['Tools: Trim spaces from both ends of lines', '', () => wholeOrSelection(t => t.replace(/^[ \t]+|[ \t]+$/gm, ''))],
   ['Tools: Format JSON', '', () => json(2)],
   ['Tools: Minify JSON', '', () => json(0)],
   ['Tools: Base64 encode', '', () => text(s => btoa(String.fromCharCode(...new TextEncoder().encode(s))))],
@@ -860,13 +943,55 @@ const FONTS = {
   mono: 'var(--font-mono)',
 };
 
+// A font name picked from the list, or one of the three built-in styles.
+const readStack = f => FONTS[f] || (f ? `"${f}", ${FONTS.serif}` : FONTS.serif);
+const codeStack = f => (f ? `"${f}", var(--font-mono)` : 'var(--font-mono)');
+
+// A font is installed if naming it changes how text measures, against two different fallbacks.
+const measure = document.createElement('canvas').getContext('2d');
+function hasFont(name) {
+  const width = stack => { measure.font = `72px ${stack}`; return measure.measureText('mmmmmmmmmmlli 日本語').width; };
+  return ['monospace', 'serif', 'sans-serif'].some(fb => width(`"${name}", ${fb}`) !== width(fb));
+}
+
+const READ_FONTS = ['Sitka Text', 'Georgia', 'Cambria', 'Constantia', 'Palatino Linotype', 'Book Antiqua', 'Segoe UI', 'Calibri', 'Candara', 'Corbel', 'Arial', 'Verdana', 'Trebuchet MS', 'Tahoma', 'Yu Mincho', 'Yu Gothic', 'Meiryo'];
+const CODE_FONTS = ['IBM Plex Mono', 'Cascadia Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', 'Source Code Pro', 'Consolas', 'Lucida Console', 'Courier New', 'Inconsolata', 'Hack', 'Roboto Mono'];
+
+// Pick a font with the palette. It previews as you move through the list, and Esc puts the old one back.
+function pickFont(key) {
+  const code = key === 'codeFont';
+  const stack = code ? codeStack : readStack;
+  const prop = code ? '--font-code' : '--font-read';
+  const show = f => document.documentElement.style.setProperty(prop, stack(f));
+  const keep = settings[key];
+  const installed = (code ? CODE_FONTS : READ_FONTS).filter(hasFont);
+  openPalette({
+    placeholder: code ? 'Font for code' : 'Font for notes and writing',
+    cancel: () => show(keep),
+    source: q => {
+      const names = installed.filter(n => n.toLowerCase().includes(q.trim().toLowerCase()));
+      const typed = q.trim();
+      if (typed && !installed.some(n => n.toLowerCase() === typed.toLowerCase()) && hasFont(typed)) names.unshift(typed);
+      const row = (label, value) => ({
+        label, detail: keep === value ? 'current' : '', font: value ? stack(value) : undefined,
+        preview: () => show(value), run: () => setSetting(key, value),
+      });
+      const list = names.map(n => row(n, n));
+      if (!typed) list.unshift(row(code ? 'Recto default' : 'Serif (Recto default)', code ? '' : 'serif'));
+      if (!list.length) return [{ label: `"${typed}" isn't installed on this computer`, run: () => show(keep) }];
+      return list;
+    },
+  });
+}
+
 function applySettings() {
   const dark = isDark();
   const root = document.documentElement;
   zen = settings.layout === 'focus';
   root.dataset.theme = dark ? 'dark' : 'light';
   root.dataset.tone = settings.tone;
-  root.style.setProperty('--font-read', FONTS[settings.font] || FONTS.serif);
+  root.style.setProperty('--font-read', readStack(settings.font));
+  root.style.setProperty('--font-code', codeStack(settings.codeFont));
   document.body.classList.toggle('layout-page', settings.layout === 'page');
   const css = getComputedStyle(root);
   api.setTheme({ dark, bg: css.getPropertyValue('--page').trim(), fg: css.getPropertyValue('--text-3').trim() });
@@ -1137,6 +1262,9 @@ async function setFolder(p) {
   expanded.clear();
   api.saveSettings({ folder: p });
   if (p) {
+    settings.recentFolders = [p, ...settings.recentFolders.filter(x => x.toLowerCase() !== p.toLowerCase())].slice(0, 10);
+    api.saveSettings({ recentFolders: settings.recentFolders });
+    renderRecent();
     if (!settings.sidebar) setSetting('sidebar', true);
     loadFolderFiles();
   }
@@ -1295,6 +1423,16 @@ window.addEventListener('resize', closeMenu);
 window.addEventListener('resize', () => tabsEl.querySelector('.active')?.scrollIntoView({ block: 'nearest', inline: 'nearest' }));
 document.addEventListener('scroll', closeMenu, true);
 
+// The only time Recto talks to the internet, and only because you asked.
+async function checkForUpdates() {
+  flash('Checking…');
+  const r = await api.checkUpdate();
+  if (r.error) return toast(r.error);
+  if (!r.newer) return toast(`You're on the latest version (${r.current}).`);
+  toast(`Recto ${r.latest} is out. You have ${r.current}. Opening the download page.`);
+  api.openUpdate();
+}
+
 function copyPath(p) {
   navigator.clipboard.writeText(p).then(() => flash('Path copied'));
 }
@@ -1318,8 +1456,9 @@ api.onContextMenu(p => {
 
 function tabMenu(d, x, y) {
   const i = docs.indexOf(d);
-  const closeEach = async list => { for (const t of list) if (!(await closeDoc(t))) break; };
   showMenu(x, y, [
+    { label: d.pinned ? 'Unpin' : 'Pin', run: () => togglePin(d) },
+    d === splitDoc ? { label: 'Close split view', run: () => setSplit(null) } : !d.view && { label: 'Show beside current tab', run: () => setSplit(d) },
     { label: 'Close', key: 'Ctrl+W', run: () => closeDoc(d) },
     { label: 'Close others', run: () => closeEach(docs.filter(t => t !== d)) },
     i < docs.length - 1 && { label: 'Close tabs to the right', run: () => closeEach(docs.slice(i + 1)) },
@@ -1404,6 +1543,41 @@ function renderRecent() {
     ul.append(li);
   }
   box.hidden = !ul.children.length;
+
+  const fbox = $('#recent-folders');
+  const ful = fbox.querySelector('ul');
+  ful.textContent = '';
+  for (const p of settings.recentFolders.slice(0, 3)) {
+    const li = document.createElement('li');
+    li.title = p;
+    const name = document.createElement('span');
+    name.textContent = basename(p);
+    const dir = document.createElement('span');
+    dir.className = 'dir';
+    dir.textContent = dirname(p).replace(/^C:\\Users\\[^\\]+/i, '~');
+    li.append(name, dir);
+    li.addEventListener('click', () => openFolder(p));
+    ful.append(li);
+  }
+  fbox.hidden = !ful.children.length;
+}
+
+// A folder that's gone gets dropped from the list instead of failing every time.
+async function openFolder(p) {
+  const r = await api.readFile(p);
+  if (r.dir) return setFolder(p);
+  settings.recentFolders = settings.recentFolders.filter(x => x.toLowerCase() !== p.toLowerCase());
+  api.saveSettings({ recentFolders: settings.recentFolders });
+  renderRecent();
+  toast(`${basename(p)}: that folder isn't there any more.`);
+}
+
+function openRecentFolder() {
+  const list = settings.recentFolders.map(p => ({ label: p, detail: p === settings.folder ? 'current' : '', run: () => openFolder(p) }));
+  openPalette({
+    placeholder: list.length ? 'Open a recent folder' : 'No recent folders yet. Use Open folder…',
+    source: q => rank(list, q),
+  });
 }
 
 // ---------- save when Recto loses focus ----------
@@ -1504,5 +1678,5 @@ window.__recto = {
   docs: () => docs, active: () => active, view, openPath, newFile, save, closeDoc, sessionData, isDirty, setSetting,
   undo: () => undo(view), settings: () => settings, pickEncoding, openFindInFiles, tabMenu,
   exportAs, printDoc, openExport, convert, csvToJson, jsonToCsv, openThemes, pickTheme, setLayout, toggleZen, toggleTable,
-  toggleLineNums, restoreSession, openSetup,
+  toggleLineNums, restoreSession, openSetup, checkForUpdates, setSplit, side,
 };

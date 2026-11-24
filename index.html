@@ -17,6 +17,7 @@
     <aside id="sidebar"></aside>
     <section id="pane">
       <div id="editor" hidden></div>
+      <div id="side" hidden><div class="side-bar"><span></span><button type="button" aria-label="Close split view">×</button></div><div class="side-ed"></div></div>
       <div id="viewer" hidden></div>
       <div id="empty" hidden>
         <svg class="glyph nib" viewBox="0 0 100 100" aria-hidden="true"><path d="M50 88L35 50C33 44 33 36 36 30L40 14H60L64 30C67 36 67 44 65 50Z"/><path d="M50 50V90" class="cut"/><circle cx="50" cy="46" r="5" class="cut"/></svg>
@@ -27,6 +28,7 @@
           <li data-act="commands"><span>Commands</span><kbd>Ctrl+Shift+P</kbd></li>
         </ul>
         <div class="recent" id="recent" hidden><h2>Recent</h2><ul></ul></div>
+        <div class="recent" id="recent-folders" hidden><h2>Folders</h2><ul></ul></div>
         <p class="version" id="version"></p>
       </div>
     </section>

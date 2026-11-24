@@ -1,5 +1,5 @@
 // Recto main process: window, files, settings and session on disk.
-const { app, BrowserWindow, ipcMain, dialog, nativeTheme, shell, Menu, session, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, nativeTheme, shell, Menu, session, screen, net } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { decode, encode } = require('./encoding');
@@ -305,6 +305,25 @@ ipcMain.handle('dialog:unsaved', async (_e, name) => {
 });
 
 ipcMain.handle('shell:reveal', (_e, p) => shell.showItemInFolder(p));
+
+// ---------- updates: only when you ask, never in the background ----------
+const newer = (a, b) => {
+  const x = a.split('.').map(Number), y = b.split('.').map(Number);
+  for (let i = 0; i < 3; i++) if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0);
+  return false;
+};
+ipcMain.handle('update:check', async () => {
+  try {
+    const res = await net.fetch('https://api.github.com/repos/DanBierre/Recto/releases/latest', { headers: { Accept: 'application/vnd.github+json' } });
+    if (!res.ok) return { error: `GitHub said ${res.status}` };
+    const latest = String((await res.json()).tag_name || '').replace(/^v/, '');
+    if (!/^\d+\.\d+\.\d+/.test(latest)) return { error: "Couldn't read the latest version" };
+    return { current: app.getVersion(), latest, newer: newer(latest, app.getVersion()) };
+  } catch {
+    return { error: "Couldn't reach GitHub. Are you online?" };
+  }
+});
+ipcMain.handle('update:open', () => shell.openExternal('https://github.com/DanBierre/Recto/releases/latest'));
 
 // ---------- watch open files for outside changes ----------
 const watched = new Map();

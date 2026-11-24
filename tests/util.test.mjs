@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { detectEol, fuzzy, languageFor, basename, relativeTo, countWords } from '../src/util.js';
+import { detectEol, fuzzy, languageFor, basename, relativeTo, countWords, countChars } from '../src/util.js';
 
 test('detectEol picks the most common line ending', () => {
   assert.equal(detectEol('a\r\nb\r\nc\n'), '\r\n');
@@ -40,6 +40,12 @@ test('path helpers', () => {
 test('countWords', () => {
   assert.equal(countWords('  hello   there\nmate '), 3);
   assert.equal(countWords(''), 0);
+});
+
+test('countChars counts code points, not line breaks', () => {
+  assert.equal(countChars('日本語\r\nです'), 5);
+  assert.equal(countChars('a😀b'), 3);
+  assert.equal(countChars(''), 0);
 });
 
 import { detectIndent } from '../src/util.js';

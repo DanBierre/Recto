@@ -80,6 +80,7 @@ function render() {
     if (i === sel) li.className = 'sel';
     const label = document.createElement('span');
     label.className = 'label';
+    if (it.font) label.style.fontFamily = it.font;
     label.append(highlighted(it.label, it.hits));
     li.append(label);
     if (it.detail) {

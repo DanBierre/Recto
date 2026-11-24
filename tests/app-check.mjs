@@ -252,12 +252,92 @@ await page2.waitForTimeout(200);
 assert.ok(await page2.locator('#recent li').count() >= 2);
 await page2.screenshot({ path: path.join(out, 'empty.png') });
 
+// ---------- Quality of life ----------
+// Characters are counted next to words, because Japanese has no spaces to count words by.
+const jp = path.join(profile, 'nihongo.txt');
+fs.writeFileSync(jp, '日本語です\n二行目');
+await open(page2, jp);
+await page2.waitForTimeout(200);
+assert.match(await page2.textContent('#status'), /2 words/);
+assert.match(await page2.textContent('#status'), /8 chars/);
+
+// The status bar has a wrap button that flips word wrap for the tab.
+assert.match(await page2.textContent('#status'), /Wrap/);
+const wrapBefore = await page2.evaluate(() => window.__recto.active().wrap);
+await page2.click('#status button:has-text("rap")');
+assert.equal(await page2.evaluate(() => window.__recto.active().wrap), !wrapBefore);
+await page2.click('#status button:has-text("rap")');
+assert.equal(await page2.evaluate(() => window.__recto.active().wrap), wrapBefore);
+
+// A big file gets an "Opening" note first.
+const big = path.join(profile, 'big.txt');
+fs.writeFileSync(big, 'a line of text in a big file\n'.repeat(90000));
+await open(page2, big);
+assert.match(await page2.textContent('#flash'), /Opening a big file/);
+
+// Check for updates asks GitHub and always answers in a toast.
+await page2.evaluate(() => window.__recto.checkForUpdates());
+assert.match(await page2.textContent('#toast'), /latest version|is out|reach GitHub|GitHub said/);
+
+// Opening a folder remembers it, and the palette lists it.
+await open(page2, profile);
+await page2.waitForTimeout(200);
+const remembered = JSON.parse(fs.readFileSync(path.join(profile, 'settings.json'), 'utf8')).recentFolders;
+assert.equal(remembered[0].toLowerCase(), profile.toLowerCase());
+await page2.keyboard.press('Control+Shift+p');
+await page2.keyboard.type('recent folder');
+await page2.keyboard.press('Enter');
+await page2.waitForTimeout(200);
+assert.match(await page2.textContent('#palette ul'), new RegExp(path.basename(profile)));
+await page2.keyboard.press('Escape');
+
+// Split view shows a read-only copy of a tab beside the editor, and keeps it in step.
+await open(page2, jp);
+await page2.evaluate(() => { const r = window.__recto; r.setSplit(r.active()); });
+assert.ok(await page2.isVisible('#side'));
+assert.match(await page2.textContent('#side .cm-content'), /日本語です/);
+await page2.click('#editor .cm-content');
+await page2.keyboard.press('Control+Home');
+await page2.keyboard.type('ZZmirror');
+assert.match(await page2.textContent('#side .cm-content'), /ZZmirror/);
+await page2.screenshot({ path: path.join(out, 'split.png') });
+await page2.keyboard.press('Control+z');
+await page2.evaluate(() => window.__recto.setSplit(null));
+assert.ok(!(await page2.isVisible('#side')));
+
+// Fonts: pick one from the palette; it previews while you move, and Esc undoes the preview.
+await page2.keyboard.press('Control+Shift+p');
+await page2.keyboard.type('choose the code font');
+await page2.keyboard.press('Enter');
+await page2.waitForTimeout(150);
+const rows = await page2.$$eval('#palette li .label', l => l.map(x => x.textContent));
+assert.ok(rows.includes('Consolas'), 'Consolas listed: ' + rows.join(', '));
+await page2.screenshot({ path: path.join(out, 'fonts.png') });
+await page2.keyboard.type('consolas');
+await page2.keyboard.press('Enter');
+await page2.waitForTimeout(150);
+assert.match(await page2.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-code')), /Consolas/);
+assert.equal(JSON.parse(fs.readFileSync(path.join(profile, 'settings.json'), 'utf8')).codeFont, 'Consolas');
+await page2.keyboard.press('Control+Shift+p');
+await page2.keyboard.type('choose the reading font');
+await page2.keyboard.press('Enter');
+await page2.keyboard.type('georgia');
+await page2.waitForTimeout(150);
+assert.match(await page2.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-read')), /Georgia/);
+await page2.keyboard.press('Escape');
+assert.doesNotMatch(await page2.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--font-read')), /"Georgia"/);
+
 // ---------- Blank start ----------
 // Leave a saved file and an unsaved draft open, then restart with "start with a blank page" on.
 await page2.evaluate(() => window.__recto.setSetting('startBlank', true));
 await open(page2, md);
 await page2.evaluate(() => window.__recto.newFile());
 await page2.keyboard.type('draft kept over a blank start');
+// Pin the draft: it moves to the left, and stays pinned after a restart.
+await page2.click('.tab.active', { button: 'right' });
+await page2.locator('#menu >> text="Pin"').click();
+assert.equal(await page2.evaluate(() => document.querySelector('.tab').classList.contains('pinned')), true);
+assert.equal(await page2.evaluate(() => window.__recto.docs()[0].pinned), true);
 await page2.waitForTimeout(800);
 await app2.close();
 
@@ -276,6 +356,7 @@ const blank = await page3.evaluate(() => {
 assert.deepEqual(blank.active, { path: null, text: '' });
 assert.ok(blank.texts.includes('draft kept over a blank start'), 'unsaved draft kept');
 assert.deepEqual(blank.paths, [], 'saved files not reopened');
+assert.equal(await page3.evaluate(() => window.__recto.docs().some(d => d.pinned)), true, 'pin kept after restart');
 console.log('blank ok');
 await app3.close();
 
