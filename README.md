@@ -52,6 +52,13 @@ Recto is free and [MIT licensed](LICENSE).
     <td><img src="docs/screenshots/themes.png" alt="The theme picker"><br><sub><b>Eight themes.</b> Or follow Windows light and dark.</sub></td>
     <td><img src="docs/screenshots/csv-table.png" alt="A CSV file shown as a table"><br><sub><b>CSV as a table.</b> Switch to the raw text any time.</sub></td>
   </tr>
+  <tr>
+    <td><img src="docs/screenshots/split-view.png" alt="Two files side by side, the one on the right read-only"><br><sub><b>Split view.</b> Keep a second tab open beside the one you're writing in. It's read-only.</sub></td>
+    <td><img src="docs/screenshots/font-picker.png" alt="The font picker, listing code fonts"><br><sub><b>Pick your fonts.</b> One for notes, one for code. Move through the list and it previews live.</sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshots/pinned-tabs.png" alt="A pinned tab at the left, with word and character counts and a Wrap button in the status bar" width="50%"><br><sub><b>Pinned tabs and the status bar.</b> Pinned tabs sit at the left and don't close by accident. Word and character counts are down the bottom, with a Wrap button.</sub></td>
+  </tr>
 </table>
 
 The first time it runs, Recto asks a few quick questions (theme, layout, font, right-click menu, desktop shortcut). You can skip them, and change any of it later.
