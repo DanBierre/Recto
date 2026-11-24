@@ -1,6 +1,6 @@
 # Recto: new-user audit
 
-Date: 16 November 2026. App version: 0.1.0, run from source (Electron 43.8) and driven with Playwright.
+Date: 16 November 2026. Audited at app version 0.1.0 (Electron 43.8, driven with Playwright). This is a historical snapshot: findings 1 to 3 were fixed by 0.1.3 (focus after un-hide, off-screen window check, big-file note). Findings 4 to 11 have not been re-checked.
 
 Nothing in the app was changed. This is a list for Dan to pick from.
 
